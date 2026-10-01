@@ -1,4 +1,4 @@
-const CONFIG={url:'https://zqumthrpodjggnsfmhhp.supabase.com',key:'sb_publishable_K21BgpeFWR6uDeCwNEqnvQ_rnI5IjHu'};let sb=null;let state={user:null,videos:[],cats:[],tab:'home',search:'',favorites:new Set()};
+const CONFIG={url:'https://zqumthrpodjggnsfmhhp.supabase.co',key:'sb_publishable_K21BgpeFWR6uDeCwNEqnvQ_rnI5IjHu'};let sb=null;let state={user:null,videos:[],cats:[],tab:'home',search:'',favorites:new Set()};
 const $=s=>document.querySelector(s);const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 function ready(){return CONFIG.url.startsWith('http')&&CONFIG.key!=='YOUR_SUPABASE_PUBLISHABLE_KEY'}
 async function init(){if('serviceWorker'in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});if(ready()){sb=window.supabase.createClient(CONFIG.url,CONFIG.key);const {data}=await sb.auth.getSession();state.user=data.session?.user||null;if(state.user)await loadData();}render();}
