@@ -1,7 +1,4 @@
-const CONFIG={
-  url:'https://zqumthrpodjggnsfmhhp.supabase.co',
-  key:'sb_publishable_K21BgpeFWR6uDeCwNEqnvQ_rnI5IjHu'
-};
+const CONFIG={url:'https://zqumthrpodjggnsfmhhp.supabase.co',key:localStorage.getItem('cineartz_supabase_key')||''};
 let sb=null;
 let state={user:null,videos:[],cats:[],tab:'cats',search:'',favorites:new Set(),downloads:[],auth:'login',loading:true,gate:false};
 const $=s=>document.querySelector(s);
@@ -53,7 +50,11 @@ async function loadData(){
     sb.from('videos').select('*').eq('status','ready').order('created_at',{ascending:false}).limit(100),
     sb.from('favorites').select('video_id').eq('user_id',state.user.id)
   ]);
-  state.cats=c.data||[];state.videos=v.data||[];state.favorites=new Set((f.data||[]).map(x=>x.video_id));
+  if(c.error) throw c.error;
+  if(v.error) throw v.error;
+  state.cats=c.data||[];
+  state.videos=v.data||[];
+  state.favorites=new Set(f.error?[]:(f.data||[]).map(x=>x.video_id));
 }
 function render(){
   if(state.loading){document.body.innerHTML='<main class="splash"><div class="camera-glow"></div><div class="logo-big">cineartz036</div><div class="tagline">From RAW shorts → to Real</div><div class="loader"><i></i></div><div class="loading-copy">Creating Stories...<br><span>One Frame at a Time</span></div></main>';return}
@@ -97,8 +98,10 @@ function app(){
   document.body.innerHTML='<div id="view"></div><button class="fab" onclick="tab(\'upload\')">＋</button><nav class="bottom"><button id="nav-home" onclick="tab(\'home\')">⌂<small>Home</small></button><button id="nav-cats" onclick="tab(\'cats\')">▦<small>Categories</small></button><button id="nav-downloads" onclick="tab(\'downloads\')">⇩<small>Downloads</small></button><button id="nav-profile" onclick="tab(\'profile\')">◉<small>Profile</small></button></nav>';view();
 }
 function tab(t){state.tab=t;view()}
-function view(){const v=$('#view');if(!v)return;['home','cats','downloads','profile'].forEach(t=>{const b=$('#nav-'+t);if(b)b.classList.toggle('active',state.tab===t)});if(state.tab==='home')home(v);else if(state.tab==='cats')cats(v);else if(state.tab==='downloads')downloads(v);else profile(v)}
-function header(title,back=false){return `<div class="topbar">${back?'<button class="icon-btn" onclick="tab(\'home\')">‹</button>':'<button class="icon-btn">☰</button>'}<div class="brand">cineartz036<div>From RAW shorts → to Real</div></div><button class="icon-btn">⌕</button></div>`}
+function view(){const v=$('#view');if(!v)return;['home','cats','downloads','profile'].forEach(t=>{const b=$('#nav-'+t);if(b)b.classList.toggle('active',state.tab===t)});if(state.tab==='home')home(v);else if(state.tab==='cats')cats(v);else if(state.tab==='downloads')downloads(v);else if(state.tab==='upload')upload(v);else profile(v);requestAnimationFrame(()=>document.body.classList.add('page-ready'))}
+function goBack(){ if(state.tab==='upload'){state.tab='cats';app();return} state.tab='cats';app(); }
+window.goBack=goBack;
+function header(title,back=false){return `<div class="topbar">${back?'<button class="icon-btn" onclick="goBack()">‹</button>':'<button class="icon-btn">☰</button>'}<div class="brand">cineartz036<div>From RAW shorts → to Real</div></div><button class="icon-btn">⌕</button></div>`}
 function home(v){
   const list=state.videos.filter(x=>(x.title||'').toLowerCase().includes(state.search.toLowerCase()));
   const cats=state.cats.slice(0,4);
@@ -115,20 +118,87 @@ window.categoryPage=categoryPage;
 function uploadToCategory(name){state.uploadCategoryName=name;state.tab='upload';app()}
 async function upload(v){
   const preset=state.uploadCategoryName||'';const presetId=state.uploadCategoryId||'';
-  v.innerHTML=`<main class="screen">${header('Upload Video',true)}<div class="page-title"><h1>Upload Video</h1><span>Share your original work</span></div><div class="upload-card"><label class="dropzone"><input id="uf" type="file" accept="video/*" onchange="showFile(this)"><span class="cloud">⇧</span><b>Select Video</b><small>from Gallery or Files</small><strong id="file-name">Choose a video</strong></label><input id="ut" class="field" placeholder="Video Title"><select id="uc" class="field"><option value="">Select Category</option>${state.cats.map(c=>`<option value="${c.id}" ${(presetId&&String(c.id)===String(presetId))||(!presetId&&String(c.name).toLowerCase()===String(preset).toLowerCase())?'selected':''}>${esc(c.name)}</option>`).join('')}</select><textarea id="ud" class="field" rows="4" placeholder="Description (Optional)"></textarea><button class="primary" onclick="doUpload()">⇧ &nbsp; Upload Video</button><div id="um" class="msg hidden"></div></div></main>`;
+  v.innerHTML=`<main class="screen upload-screen">${header('Upload Video',true)}<div class="page-title"><div><h1>Upload Video</h1><span>Original file • zero re-encoding</span></div></div><div class="upload-card"><label class="dropzone" id="dropzone"><input id="uf" type="file" accept="video/*" onchange="showFile(this)"><span class="cloud">⇧</span><b>Select Video</b><small>Gallery or Files • any supported video</small><strong id="file-name">Choose a video</strong></label><div class="upload-fields"><input id="ut" class="field" placeholder="Video Title"><select id="uc" class="field"><option value="">Select Category</option>${state.cats.map(c=>`<option value="${c.id}" ${(presetId&&String(c.id)===String(presetId))||(!presetId&&String(c.name).toLowerCase()===String(preset).toLowerCase())?'selected':''}>${esc(c.name)}</option>`).join('')}</select><textarea id="ud" class="field" rows="4" placeholder="Description (Optional)"></textarea></div><div class="quality-panel"><b>ORIGINAL QUALITY LOCK</b><span>We upload the exact selected file. No resize, no compression, no FPS conversion and no re-encoding.</span></div><button class="primary upload-submit" onclick="doUpload()">⇧ &nbsp; Upload Original Video</button><div class="upload-progress hidden" id="upload-progress"><div class="progress-track"><i></i></div><span id="upload-progress-text">Preparing…</span></div><div id="um" class="msg hidden"></div></div></main>`;
 }
-function showFile(input){const n=$('#file-name');if(n)n.textContent=input.files[0]?.name||'Choose a video'}
+
+function showFile(input){const f=input.files[0],n=$('#file-name');if(n)n.textContent=f?`${f.name} • ${formatBytes(f.size)}`:'Choose a video';if(f){const dz=$('#dropzone');if(dz)dz.classList.add('has-file')}}
 window.showFile=showFile;
 function formatBytes(n){if(!n)return '0 B';const u=['B','KB','MB','GB'];let i=0,v=n;while(v>=1024&&i<u.length-1){v/=1024;i++}return (i===0?v.toFixed(0):v.toFixed(v>=100?0:v>=10?1:2))+' '+u[i]}
-async function doUpload(){const file=$('#uf').files[0],m=$('#um');m.classList.remove('hidden');if(!file||!$('#ut').value.trim()){m.textContent='Video and title are required.';return}if(!file.type.startsWith('video/')){m.textContent='Please select a valid video file.';return}m.textContent='Uploading original quality… '+formatBytes(file.size);const id=crypto.randomUUID(),path=state.user.id+'/'+id+'/'+file.name;const up=await sb.storage.from('videos-original').upload(path,file,{contentType:file.type,upsert:false,cacheControl:'3600'});if(up.error){m.textContent=up.error.message;return}const ins=await sb.from('videos').insert({id,owner_id:state.user.id,category_id:$('#uc').value||null,title:$('#ut').value.trim(),description:$('#ud').value,original_filename:file.name,storage_path:path,mime_type:file.type,file_size_bytes:file.size,status:'ready'});if(ins.error){await sb.storage.from('videos-original').remove([path]);m.textContent=ins.error.message;return}await loadData();m.textContent='Upload complete — original file quality preserved.';const uploadedCategory=categoryName($('#uc').value);state.uploadCategoryName='';state.uploadCategoryId='';setTimeout(()=>categoryPage(uploadedCategory),700)}
+async function doUpload(){
+  const file=$('#uf')?.files?.[0],m=$('#um'),btn=document.querySelector('.upload-submit'),progress=$('#upload-progress'),pt=$('#upload-progress-text');
+  m.classList.remove('hidden');
+  if(!file||!$('#ut')?.value.trim()){m.textContent='Video and title are required.';return}
+  if(!file.type.startsWith('video/')){m.textContent='Please select a valid video file.';return}
+  const categoryId=$('#uc')?.value||'';
+  if(!categoryId){m.textContent='Please select a category.';return}
+  if(!state.user){m.textContent='Please login again.';return}
+  if(file.size===0){m.textContent='This video file is empty.';return}
+  if(btn)btn.disabled=true;
+  if(progress)progress.classList.remove('hidden');
+  const setProgress=(pct,msg)=>{const bar=progress?.querySelector('.progress-track i');if(bar)bar.style.width=pct+'%';if(pt)pt.textContent=msg};
+  try{
+    setProgress(5,'Preparing original file…');
+    const id=crypto.randomUUID();
+    const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+    const path=state.user.id+'/'+id+'/'+safeName;
+    setProgress(15,`Uploading ${formatBytes(file.size)} original file…`);
+    const up=await sb.storage.from('videos-original').upload(path,file,{contentType:file.type,upsert:false,cacheControl:'3600'});
+    if(up.error)throw up.error;
+    setProgress(78,'Saving video information…');
+    const ins=await sb.from('videos').insert({id,owner_id:state.user.id,category_id:categoryId,title:$('#ut').value.trim(),description:$('#ud').value,original_filename:file.name,storage_path:path,mime_type:file.type,file_size_bytes:file.size,status:'ready'});
+    if(ins.error){await sb.storage.from('videos-original').remove([path]);throw ins.error}
+    setProgress(100,'Upload complete • Original bytes stored');
+    m.textContent=`Uploaded ${formatBytes(file.size)}. No compression, resize, FPS conversion or re-encoding was performed.`;
+    await loadData();
+    state.uploadCategoryName='';state.uploadCategoryId='';
+    setTimeout(()=>categoryPageById(categoryId),650);
+  }catch(e){
+    m.textContent=e?.message||'Upload failed. Please try again.';
+    if(progress)progress.classList.add('hidden');
+    if(btn)btn.disabled=false;
+  }
+}
 window.doUpload=doUpload;
-async function detail(id){const x=state.videos.find(v=>v.id===id);if(!x)return;const signed=await sb.storage.from('videos-original').createSignedUrl(x.storage_path,3600);const url=signed.data?.signedUrl;document.body.innerHTML=`<main class="screen detail-screen">${header('',true)}<div class="detail-video">${url?`<video controls playsinline webkit-playsinline preload="metadata" src="${url}"></video>`:'<div class="empty">Video unavailable</div>'}</div><h1>${esc(x.title)}</h1><div class="meta-row"><span>◉ ${esc(categoryName(x.category_id))}</span><span>▣ ${new Date(x.created_at).toLocaleDateString()}</span><span>◉ ${esc(formatBytes(x.file_size_bytes))}</span></div><p class="description">${esc(x.description||'Beautiful original moment captured and edited by CineArtz036.')}</p><div class="detail-actions"><button onclick="favorite(${JSON.stringify(x.id)})">♡ ${state.favorites.has(x.id)?'Favorited':'Favorite'}</button><button onclick="downloadVideo(${JSON.stringify(x.id)})">⇩ Download Original</button></div><div class="quality-note">Original file • No compression • Same uploaded quality</div></main>`}
-function categoryName(id){return state.cats.find(c=>c.id===id)?.name||'Others'}
+async function detail(id){
+  const x=state.videos.find(v=>v.id===id);if(!x)return;
+  document.body.innerHTML=`<main class="screen detail-screen video-loading"><div class="detail-top">${header('',true)}</div><div class="video-shell"><div class="video-loader"><div class="spinner"></div><span>Loading original video…</span></div></div><div class="detail-copy"><h1>${esc(x.title)}</h1><div class="meta-row"><span>◉ ${esc(categoryName(x.category_id))}</span><span>▣ ${new Date(x.created_at).toLocaleDateString()}</span><span>◉ ${esc(formatBytes(x.file_size_bytes))}</span></div><p class="description">${esc(x.description||'Beautiful original moment captured and edited by CineArtz036.')}</p><div class="detail-actions"><button onclick="favorite(${JSON.stringify(x.id)})">♡ ${state.favorites.has(x.id)?'Favorited':'Favorite'}</button><button class="download-btn" onclick="downloadVideo(${JSON.stringify(x.id)})">⇩ Download Original</button></div><div class="quality-note">Original stored file • No compression • No resizing • No FPS conversion</div></div></main>`;
+  const signed=await sb.storage.from('videos-original').createSignedUrl(x.storage_path,3600);
+  const url=signed.data?.signedUrl;
+  const shell=document.querySelector('.video-shell');
+  if(!shell)return;
+  if(!url){shell.innerHTML='<div class="empty">Video unavailable</div>';return}
+  shell.innerHTML=`<video class="cine-video" controls playsinline webkit-playsinline preload="metadata" src="${esc(url)}"></video><div class="video-badge">ORIGINAL</div>`;
+  requestAnimationFrame(()=>document.body.classList.add('page-ready'));
+}
+function categoryName(id){return state.cats.find(c=>String(c.id)===String(id))?.name||'Others'}
 window.detail=detail;
 async function favorite(id){if(state.favorites.has(id)){await sb.from('favorites').delete().eq('user_id',state.user.id).eq('video_id',id);state.favorites.delete(id)}else{await sb.from('favorites').insert({user_id:state.user.id,video_id:id});state.favorites.add(id)}detail(id)}
-async function downloadVideo(id){const x=state.videos.find(v=>v.id===id);if(!x)return;const r=await sb.storage.from('videos-original').createSignedUrl(x.storage_path,3600);const url=r.data?.signedUrl;if(!url){alert('Download link could not be created.');return}state.downloads=JSON.parse(localStorage.getItem('cineartz_downloads')||'[]').filter(d=>d.id!==x.id);state.downloads.unshift({id:x.id,title:x.title,storage_path:x.storage_path,filename:x.original_filename,size:x.file_size_bytes,mime:x.mime_type,date:Date.now()});state.downloads=state.downloads.slice(0,30);localStorage.setItem('cineartz_downloads',JSON.stringify(state.downloads));const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener';a.download=x.original_filename||'video.mp4';document.body.appendChild(a);a.click();a.remove()}
-async function openDownload(id){const d=state.downloads.find(x=>x.id===id);if(!d)return;const r=await sb.storage.from('videos-original').createSignedUrl(d.storage_path,3600);const url=r.data?.signedUrl;if(url)window.open(url,'_blank','noopener');}
+async function downloadVideo(id){
+  const x=state.videos.find(v=>v.id===id);if(!x)return;
+  const btn=document.querySelector('.download-btn');
+  if(btn){btn.disabled=true;btn.textContent='Preparing original…'}
+  try{
+    const r=await sb.storage.from('videos-original').createSignedUrl(x.storage_path,3600,{download:x.original_filename||'video.mp4'});
+    const url=r.data?.signedUrl;
+    if(!url)throw new Error(r.error?.message||'Download link could not be created.');
+    state.downloads=JSON.parse(localStorage.getItem('cineartz_downloads')||'[]').filter(d=>d.id!==x.id);
+    state.downloads.unshift({id:x.id,title:x.title,storage_path:x.storage_path,filename:x.original_filename,size:x.file_size_bytes,mime:x.mime_type,date:Date.now()});
+    state.downloads=state.downloads.slice(0,30);localStorage.setItem('cineartz_downloads',JSON.stringify(state.downloads));
+    const a=document.createElement('a');a.href=url;a.download=x.original_filename||'video.mp4';a.rel='noopener';a.target='_blank';document.body.appendChild(a);a.click();a.remove();
+    if(btn){btn.disabled=false;btn.textContent='✓ Original Download Started'}
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent='⇩ Download Original'}
+    alert(e?.message||'Download failed.');
+  }
+}
+async function openDownload(id){const d=state.downloads.find(x=>x.id===id);if(!d)return;const r=await sb.storage.from('videos-original').createSignedUrl(d.storage_path,3600,{download:d.filename||'video.mp4'});const url=r.data?.signedUrl;if(url)window.open(url,'_blank','noopener')}
+
 function downloads(v){state.downloads=JSON.parse(localStorage.getItem('cineartz_downloads')||'[]');v.innerHTML=`<main class="screen">${header('Downloads',true)}<div class="page-title"><h1>Downloads</h1><span>${state.downloads.length} saved</span></div><div class="download-list">${state.downloads.map(d=>`<button class="download-row" onclick="openDownload(${JSON.stringify(d.id)})"><div class="download-thumb">▶</div><div><b>${esc(d.title)}</b><small>${esc(d.filename||'Original video')} · ${esc(formatBytes(d.size))}</small></div><span>⇩</span></button>`).join('')||'<div class="empty">Your downloaded videos will appear here.</div>'}</div><div class="quality-note">Downloads use the original stored file. No re-encoding or quality reduction is performed.</div></main>`}
 function profile(v){v.innerHTML=`<main class="screen">${header('Profile')}<div class="profile-head"><div class="avatar">CA</div><div><h2>${esc(state.user?.user_metadata?.full_name||'cineartz036')}</h2><p>${esc(state.user?.email||'')}</p><span>● Active</span></div></div><div class="profile-menu"><button onclick="tab('upload')">⇧ <b>My Uploads</b><span>${state.videos.filter(x=>x.owner_id===state.user.id).length} ›</span></button><button onclick="tab('downloads')">⇩ <b>Downloads</b><span>${state.downloads.length} ›</span></button><button onclick="tab('home');state.search=''">♡ <b>Favorites</b><span>${state.favorites.size} ›</span></button><button onclick="alert('Settings are available in the web app preferences.')">⚙ <b>Settings</b><span>›</span></button><button onclick="alert('CineArtz036 — From RAW shorts → to Real')">ⓘ <b>About App</b><span>›</span></button></div><div class="quote">Create Amazing Edits,<br><b>One Frame at a Time!</b></div><button class="logout" onclick="logout()">Log Out</button></main>`}
 async function logout(){await sb.auth.signOut();state.user=null;state.videos=[];state.cats=[];state.favorites=new Set();state.auth='login';render()}
+document.addEventListener('click',e=>{
+  const card=e.target.closest?.('[data-category-id]');
+  if(card){e.preventDefault();e.stopPropagation();openCategory(card.dataset.categoryId);return;}
+});
+
 init();
