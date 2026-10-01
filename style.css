@@ -14,3 +14,4 @@
 .cat-clicked{transform:scale(.965);filter:brightness(1.18);border-color:#ff2737!important}
 .cat-clicked:after{content:"";position:absolute;left:var(--click-x,50%);top:var(--click-y,50%);width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.75);transform:translate(-50%,-50%);animation:catRipple .22s ease-out forwards;z-index:3;pointer-events:none}
 @keyframes catRipple{from{width:10px;height:10px;opacity:.75;box-shadow:0 0 0 0 rgba(255,31,45,.65)}to{width:420px;height:420px;opacity:0;box-shadow:0 0 0 3px rgba(255,31,45,.08)}}
+.quality-note{margin:14px 0 28px;padding:12px 14px;border:1px solid #2b2b31;border-radius:12px;background:#0d0d10;color:#8f8f97;font-size:9px;text-align:center;line-height:15px}.detail-video video{background:#000;object-fit:contain}.meta-row{flex-wrap:wrap}
