@@ -21,3 +21,7 @@
 .cat-card,.cat-large{position:relative;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;overflow:hidden;}
 .cat-card > *, .cat-large > *{pointer-events:none;}
 .cat-clicked{transform:scale(.97);transition:transform .22s ease;}
+
+/* V10: direct category navigation - animation without blocking taps */
+.cat-card,.cat-large{cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+.cat-card:active,.cat-large:active{transform:scale(.97);}
