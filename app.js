@@ -1,4 +1,7 @@
-const CONFIG={url:'https://zqumthrpodjggnsfmhhp.supabase.co',key:localStorage.getItem('cineartz_supabase_key')||''};
+const CONFIG={
+  url:'https://zqumthrpodjggnsfmhhp.supabase.co',
+  key:'sb_publishable_K21BgpeFWR6uDeCwNEqnvQ_rnI5IjHu'
+};
 let sb=null;
 let state={user:null,videos:[],cats:[],tab:'cats',search:'',favorites:new Set(),downloads:[],auth:'login',loading:true,gate:false};
 const $=s=>document.querySelector(s);
