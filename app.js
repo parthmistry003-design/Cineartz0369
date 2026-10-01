@@ -1,7 +1,4 @@
-const CONFIG={
-  url:'https://zqumthrpodjggnsfmhhp.supabase.co',
-  key:'sb_publishable_K21BgpeFWR6uDeCwNEqnvQ_rnI5IjHu'
-};
+const CONFIG={url:'https://zqumthrpodjggnsfmhhp.supabase.co',key:localStorage.getItem('cineartz_supabase_key')||''};
 let sb=null;
 let state={user:null,videos:[],cats:[],tab:'cats',search:'',favorites:new Set(),downloads:[],auth:'login',loading:true,gate:false};
 const $=s=>document.querySelector(s);
@@ -19,17 +16,29 @@ function categoryKey(name){const n=String(name||'').toLowerCase();if(n.includes(
 function categoryImage(name){return categoryImages[categoryKey(name)]||categoryImages.others}
 function categoryClick(e,name){const el=e&&e.currentTarget;if(el){el.classList.add('cat-clicked');el.style.setProperty('--click-x',((e.clientX-el.getBoundingClientRect().left)/el.offsetWidth*100)+'%');el.style.setProperty('--click-y',((e.clientY-el.getBoundingClientRect().top)/el.offsetHeight*100)+'%');}setTimeout(()=>{state.search=name;tab('home')},220)}
 window.categoryClick=categoryClick;
-function ready(){return CONFIG.url.startsWith('http')&&CONFIG.key&&CONFIG.key!=='YOUR_SUPABASE_PUBLISHABLE_KEY'}
+function ready(){return /^https:\/\/[^\s]+$/.test(CONFIG.url)&&/^sb_publishable_[A-Za-z0-9_-]+$/.test(CONFIG.key)}
+function saveKey(key){const clean=String(key||'').trim();localStorage.setItem('cineartz_supabase_key',clean);CONFIG.key=clean}
+function clearKey(){localStorage.removeItem('cineartz_supabase_key');CONFIG.key='';sb=null}
+function setupPage(message=''){document.body.innerHTML=`<main class="auth-screen"><div class="auth-logo">cineartz036</div><div class="auth-tag">From RAW shorts → to Real</div><div class="auth-card compact setup-card"><div class="eyebrow">ONE-TIME CONNECTION</div><h1>Connect Supabase</h1><p class="muted">Paste your current Supabase <b>Publishable Key</b>. Your key stays on this iPhone/browser.</p><div class="form"><input id="setup-url" class="field" value="${esc(CONFIG.url)}" placeholder="Project URL"><input id="setup-key" class="field" type="password" placeholder="sb_publishable_…" autocomplete="off"><button class="primary" onclick="connectSupabase()">Connect & Continue <span>→</span></button><button class="secondary" onclick="clearKey();setupPage()">Clear Saved Key</button><div id="setup-msg" class="msg ${message?'':'hidden'}">${esc(message)}</div></div></div></main>`;const k=$('#setup-key');if(k)k.focus()}
+async function connectSupabase(){const url=$('#setup-url').value.trim().replace(/\/$/,'');const key=$('#setup-key').value.trim();const m=$('#setup-msg');m.classList.remove('hidden');if(!/^https:\/\//.test(url)){m.textContent='Enter a valid Supabase Project URL.';return}if(!/^sb_publishable_[A-Za-z0-9_-]+$/.test(key)){m.textContent='Enter a valid Supabase Publishable Key starting with sb_publishable_. Do not use a secret key.';return}m.textContent='Checking connection…';try{const test=window.supabase.createClient(url,key);const r=await test.auth.getSession();if(r.error){m.textContent=r.error.message;return}localStorage.setItem('cineartz_supabase_url',url);saveKey(key);CONFIG.url=url;sb=test;m.textContent='Connected. Loading CineArtz036…';setTimeout(()=>init(),250)}catch(e){m.textContent=e?.message||'Could not connect to Supabase.'}}
+window.connectSupabase=connectSupabase
 async function init(){
   if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  if(!CONFIG.url){CONFIG.url=localStorage.getItem('cineartz_supabase_url')||'https://zqumthrpodjggnsfmhhp.supabase.co'}
   if(!ready()){state.loading=false;render();return}
-  sb=window.supabase.createClient(CONFIG.url,CONFIG.key);
-  const {data}=await sb.auth.getSession();
-  state.user=data.session?.user||null;
-  if(state.user) await loadData();
-  state.loading=false;
-  state.gate=!!state.user;
-  render();
+  try{
+    sb=window.supabase.createClient(CONFIG.url,CONFIG.key);
+    const {data,error}=await sb.auth.getSession();
+    if(error) throw error;
+    state.user=data.session?.user||null;
+    if(state.user) await loadData();
+    state.loading=false;
+    state.gate=!!state.user;
+    render();
+  }catch(e){
+    state.loading=false;
+    if(/invalid api key|apikey|api key/i.test(e?.message||'')){clearKey();setupPage('The saved Supabase key was rejected. Paste the current Publishable Key from Supabase → Project Settings → API Keys.')}else{setupPage(e?.message||'Supabase connection failed.')}
+  }
 }
 async function loadData(){
   const [c,v,f]=await Promise.all([
@@ -41,7 +50,7 @@ async function loadData(){
 }
 function render(){
   if(state.loading){document.body.innerHTML='<main class="splash"><div class="camera-glow"></div><div class="logo-big">cineartz036</div><div class="tagline">From RAW shorts → to Real</div><div class="loader"><i></i></div><div class="loading-copy">Creating Stories...<br><span>One Frame at a Time</span></div></main>';return}
-  if(!ready()){document.body.innerHTML='<main class="screen"><div class="panel setup"><h2>Connect CineArtz036</h2><p>Open <b>app.js</b> and add your Supabase Project URL and Publishable Key.</p></div></main>';return}
+  if(!ready()){setupPage();return}
   if(!state.user){authPage();return}
   if(state.gate){brandGate();return}
   app();
