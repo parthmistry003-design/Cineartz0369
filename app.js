@@ -1,12 +1,21 @@
-const CONFIG={
-  url:'https://zqumthrpodjggnsfmhhp.supabase.co',
-  key:'sb_publishable_K21BgpeFWR6uDeCwNEqnvQ_rnI5IjHu'
-};
+const CONFIG={url:'https://zqumthrpodjggnsfmhhp.supabase.co',key:'sb_publishable_K21BgpeFWR6uDeCwNEqnVQ_rnI5IjHu'};
 let sb=null;
-let state={user:null,videos:[],cats:[],tab:'home',search:'',favorites:new Set(),downloads:[],auth:'login',loading:true};
+let state={user:null,videos:[],cats:[],tab:'cats',search:'',favorites:new Set(),downloads:[],auth:'login',loading:true,gate:false};
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-const icons={Car:'🚗',Festival:'✦',Politics:'🏛',Event:'▣',Others:'•••',default:'▶'};
+const icons={Car:'🚗',Festival:'✦',Politics:'🏛',Event:'▣',Others:'•••',Mafia:'◈',default:'▶'};
+const categoryImages={
+  car:'https://images.unsplash.com/photo-1564435147693-5e6503ba6999?auto=format&fit=crop&w=900&q=82',
+  festival:'https://images.unsplash.com/photo-1600146698733-a339319d56e1?auto=format&fit=crop&w=900&q=82',
+  politics:'https://upload.wikimedia.org/wikipedia/commons/c/c6/Official_portrait_of_Narendra_Modi%2C_2022.jpg',
+  event:'https://images.unsplash.com/photo-1753030722011-c50785aa569b?auto=format&fit=crop&w=900&q=82',
+  mafia:'https://images.unsplash.com/photo-1611493098655-11e33398b64e?auto=format&fit=crop&w=900&q=82',
+  others:'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=900&q=82'
+};
+function categoryKey(name){const n=String(name||'').toLowerCase();if(n.includes('car')||n.includes('delivery')||n.includes('auto'))return 'car';if(n.includes('festival')||n.includes('firework'))return 'festival';if(n.includes('politic')||n.includes('government')||n.includes('election'))return 'politics';if(n.includes('event')||n.includes('wedding')||n.includes('concert'))return 'event';if(n.includes('mafia')||n.includes('gang')||n.includes('crime'))return 'mafia';return 'others'}
+function categoryImage(name){return categoryImages[categoryKey(name)]||categoryImages.others}
+function categoryClick(e,name){const el=e&&e.currentTarget;if(el){el.classList.add('cat-clicked');el.style.setProperty('--click-x',((e.clientX-el.getBoundingClientRect().left)/el.offsetWidth*100)+'%');el.style.setProperty('--click-y',((e.clientY-el.getBoundingClientRect().top)/el.offsetHeight*100)+'%');}setTimeout(()=>{state.search=name;tab('home')},220)}
+window.categoryClick=categoryClick;
 function ready(){return CONFIG.url.startsWith('http')&&CONFIG.key&&CONFIG.key!=='YOUR_SUPABASE_PUBLISHABLE_KEY'}
 async function init(){
   if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
@@ -15,7 +24,9 @@ async function init(){
   const {data}=await sb.auth.getSession();
   state.user=data.session?.user||null;
   if(state.user) await loadData();
-  state.loading=false;render();
+  state.loading=false;
+  state.gate=!!state.user;
+  render();
 }
 async function loadData(){
   const [c,v,f]=await Promise.all([
@@ -29,6 +40,7 @@ function render(){
   if(state.loading){document.body.innerHTML='<main class="splash"><div class="camera-glow"></div><div class="logo-big">cineartz036</div><div class="tagline">From RAW shorts → to Real</div><div class="loader"><i></i></div><div class="loading-copy">Creating Stories...<br><span>One Frame at a Time</span></div></main>';return}
   if(!ready()){document.body.innerHTML='<main class="screen"><div class="panel setup"><h2>Connect CineArtz036</h2><p>Open <b>app.js</b> and add your Supabase Project URL and Publishable Key.</p></div></main>';return}
   if(!state.user){authPage();return}
+  if(state.gate){brandGate();return}
   app();
 }
 function authPage(){
@@ -43,7 +55,7 @@ async function signIn(){
   if(!email||!password){m.textContent='Email and password are required.';return}
   const r=await sb.auth.signInWithPassword({email,password});
   if(r.error){m.textContent=r.error.message;return}
-  state.user=r.data.user;await loadData();render();
+  state.user=r.data.user;await loadData();state.gate=true;render();
 }
 async function signUp(){
   const name=$('#name').value.trim(),email=$('#email').value.trim(),password=$('#pass').value,pass2=$('#pass2').value,m=$('#msg');m.classList.remove('hidden');
@@ -56,6 +68,12 @@ async function signUp(){
   state.auth='login';authPage();setTimeout(()=>{const x=$('#msg');if(x){x.classList.remove('hidden');x.textContent='Account created successfully. Please login.'}},30);
 }
 window.signIn=signIn;window.signUp=signUp;
+function brandGate(){
+  document.body.innerHTML=`<main class="brand-gate"><div class="gate-camera"></div><div class="gate-content"><div class="gate-logo" onclick="enterCategories()">cineartz036</div><div class="gate-tag">From RAW shorts → to Real</div><div class="gate-line"><i></i></div><div class="gate-hint">Tap the logo to continue</div></div></main>`;
+  requestAnimationFrame(()=>document.body.classList.add('gate-ready'));
+}
+function enterCategories(){state.gate=false;state.tab='cats';app();cats(document.querySelector('#view'));}
+window.enterCategories=enterCategories;
 function app(){
   document.body.innerHTML='<div id="view"></div><button class="fab" onclick="tab(\'upload\')">＋</button><nav class="bottom"><button id="nav-home" onclick="tab(\'home\')">⌂<small>Home</small></button><button id="nav-cats" onclick="tab(\'cats\')">▦<small>Categories</small></button><button id="nav-downloads" onclick="tab(\'downloads\')">⇩<small>Downloads</small></button><button id="nav-profile" onclick="tab(\'profile\')">◉<small>Profile</small></button></nav>';view();
 }
@@ -67,12 +85,12 @@ function home(v){
   const cats=state.cats.slice(0,4);
   v.innerHTML=`<main class="screen">${header()}<div class="searchbox"><span>⌕</span><input placeholder="Search videos, categories..." oninput="state.search=this.value;home(document.querySelector('#view'))" value="${esc(state.search)}"></div><div class="hero"><div><b>Real Moments</b><b>Real Stories</b><span>From RAW shorts → to Real</span></div><div class="hero-person">◒</div></div><div class="section-title"><h2>Categories</h2><button onclick="tab('cats')">See All →</button></div><div class="cat-grid">${cats.map(catCard).join('')}</div><div class="section-title"><h2>Recently Added</h2><button onclick="tab('cats')">See All →</button></div><div class="recent-grid">${list.slice(0,6).map(recentCard).join('')||'<div class="empty">No videos added yet.</div>'}</div></main>`;
 }
-function catCard(c,i){const n=(c.name||'Others'),icon=icons[n]||icons.default;return `<button class="cat-card c${i}" onclick="state.search=${JSON.stringify(n)};tab('home')"><div class="cat-icon">${icon}</div><div><b>${esc(n)}</b><small>${state.videos.filter(v=>v.category_id===c.id).length} Videos</small></div><span>›</span></button>`}
+function catCard(c,i){const n=(c.name||'Others'),icon=icons[n]||icons[categoryKey(n)]||icons.default;return `<button class="cat-card c${i}" style="--cat-image:url('${categoryImage(n)}')" onclick="categoryClick(event,${JSON.stringify(n)})"><div class="cat-icon">${icon}</div><div><b>${esc(n)}</b><small>${state.videos.filter(v=>v.category_id===c.id).length} Videos</small></div><span>›</span></button>`}
 function recentCard(x){return `<button class="recent-card" onclick="detail(${JSON.stringify(x.id)})"><div class="thumb art-${Math.abs(hash(x.id))%6}"><span>▶</span><em>${formatDuration(x)}</em></div><b>${esc(x.title)}</b><small>${esc(x.original_filename||'Video')}</small></button>`}
 function hash(s){let h=0;for(let i=0;i<s.length;i++)h=(h<<5)-h+s.charCodeAt(i)|0;return h}
 function formatDuration(x){return x.duration_seconds?new Date(x.duration_seconds*1000).toISOString().substr(14,5):'00:48'}
-function cats(v){v.innerHTML=`<main class="screen">${header('Categories',true)}<div class="page-title"><h1>Categories</h1><span>${state.cats.length} collections</span></div><div class="category-list">${state.cats.map((c,i)=>catLarge(c,i)).join('')}</div></main>`}
-function catLarge(c,i){const n=c.name||'Others';return `<button class="cat-large c${i%6}" onclick="state.search=${JSON.stringify(n)};tab('home')"><div class="large-icon">${icons[n]||icons.default}</div><div><b>${esc(n)}</b><small>${state.videos.filter(v=>v.category_id===c.id).length} Videos</small></div><span>›</span></button>`}
+function cats(v){v.innerHTML=`<main class="screen">${header('Categories',false)}<div class="page-title"><div><h1>Categories</h1><span>Explore your video library</span></div></div><div class="quick-actions"><button onclick="tab('upload')"><b>＋</b><span>Upload Video</span><small>Add your original video</small></button><button onclick="tab('downloads')"><b>⇩</b><span>Downloads</span><small>Saved videos</small></button></div><div class="section-title"><h2>Collections</h2><span>${state.cats.length} categories</span></div><div class="category-list">${state.cats.map((c,i)=>catLarge(c,i)).join('')}</div></main>`}
+function catLarge(c,i){const n=c.name||'Others';return `<button class="cat-large c${i%6}" style="--cat-image:url('${categoryImage(n)}')" onclick="categoryClick(event,${JSON.stringify(n)})"><div class="large-icon">${icons[n]||icons[categoryKey(n)]||icons.default}</div><div><b>${esc(n)}</b><small>${state.videos.filter(v=>v.category_id===c.id).length} Videos</small></div><span>›</span></button>`}
 async function upload(v){
   v.innerHTML=`<main class="screen">${header('Upload Video',true)}<div class="page-title"><h1>Upload Video</h1><span>Share your original work</span></div><div class="upload-card"><label class="dropzone"><input id="uf" type="file" accept="video/*" onchange="showFile(this)"><span class="cloud">⇧</span><b>Select Video</b><small>from Gallery or Files</small><strong id="file-name">Choose a video</strong></label><input id="ut" class="field" placeholder="Video Title"><select id="uc" class="field"><option value="">Select Category</option>${state.cats.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select><textarea id="ud" class="field" rows="4" placeholder="Description (Optional)"></textarea><button class="primary" onclick="doUpload()">⇧ &nbsp; Upload Video</button><div id="um" class="msg hidden"></div></div></main>`;
 }
