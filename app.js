@@ -1,7 +1,4 @@
-const CONFIG={
-  url:'https://zqumthrpodjggnsfmhhp.supabase.co',
-  key:'sb_publishable_K21BgpeFWR6uDeCwNEqnvQ_rnI5IjHu'
-};
+const CONFIG={url:'https://zqumthrpodjggnsfmhhp.supabase.co',key:localStorage.getItem('cineartz_supabase_key')||''};
 let sb=null;
 let state={user:null,videos:[],cats:[],tab:'cats',search:'',favorites:new Set(),downloads:[],auth:'login',loading:true,gate:false,uploadCategoryId:null,uploadCategoryName:''};
 const $=s=>document.querySelector(s);
@@ -205,12 +202,16 @@ async function detail(id){
     const shell=document.querySelector('#video-shell');
     if(!shell)return;
     if(signed.error||!signed.data?.signedUrl){shell.innerHTML=`<div class="empty">Video link could not be created.<br><small>${esc(signed.error?.message||'Storage access error')}</small><br><button class="primary" type="button" onclick="detail(${JSON.stringify(x.id)})">↻ Try Again</button></div>`;return}
+    const url=signed.data.signedUrl;
     const player=document.createElement('video');
-    player.id='cine-player';player.className='cine-video';player.controls=true;player.playsInline=true;player.preload='metadata';player.setAttribute('webkit-playsinline','true');player.setAttribute('x-webkit-airplay','allow');player.setAttribute('controlsList','nodownload');player.src=signed.data.signedUrl;player.load();
+    player.id='cine-player';player.className='cine-video';player.controls=true;player.playsInline=true;player.preload='auto';player.setAttribute('webkit-playsinline','true');player.setAttribute('x-webkit-airplay','allow');player.setAttribute('aria-label',x.title||'Video');
+    const source=document.createElement('source');source.src=url;source.type=x.mime_type||'video/mp4';player.appendChild(source);
     const badge=document.createElement('div');badge.className='video-badge';badge.textContent='ORIGINAL';
     shell.innerHTML='';shell.appendChild(player);shell.appendChild(badge);
-    player.addEventListener('error',()=>{shell.innerHTML=`<div class="empty">This video format cannot be played by this iPhone/browser.<br>You can still use <b>Download Original</b> to save the exact file.</div>`});
     player.addEventListener('loadedmetadata',()=>document.body.classList.add('page-ready'),{once:true});
+    player.addEventListener('canplay',()=>player.classList.add('ready'),{once:true});
+    player.addEventListener('error',()=>{const code=player.error?.code||0;shell.innerHTML=`<div class="empty">Video could not be played in this browser (error ${code}).<br><small>The original file is still stored unchanged.</small><br><button class="primary" type="button" onclick="downloadVideo(${JSON.stringify(x.id)})">⇩ Download Original</button></div>`});
+    player.load();
   }catch(e){const shell=document.querySelector('#video-shell');if(shell)shell.innerHTML=`<div class="empty">Video loading failed.<br><small>${esc(e?.message||'Unknown error')}</small><br><button class="primary" type="button" onclick="detail(${JSON.stringify(x.id)})">↻ Try Again</button></div>`}
 }
 function categoryName(id){return state.cats.find(c=>String(c.id)===String(id))?.name||'Others'}
