@@ -1,7 +1,4 @@
-const CONFIG={
-  url:'https://zqumthrpodjggnsfmhhp.supabase.co',
-  key:'sb_publishable_K21BgpeFWR6uDeCwNEqnvQ_rnI5IjHu'
-};
+const CONFIG={url:'https://zqumthrpodjggnsfmhhp.supabase.co',key:localStorage.getItem('cineartz_supabase_key')||''};
 let sb=null;
 let state={user:null,videos:[],cats:[],tab:'cats',search:'',favorites:new Set(),downloads:[],auth:'login',loading:true,gate:false};
 const $=s=>document.querySelector(s);
@@ -121,48 +118,43 @@ window.categoryPage=categoryPage;
 function uploadToCategory(name){state.uploadCategoryName=name;state.tab='upload';app()}
 async function upload(v){
   const preset=state.uploadCategoryName||'';const presetId=state.uploadCategoryId||'';
-  v.innerHTML=`<main class="screen upload-screen">${header('Upload Video',true)}<div class="page-title"><div><h1>Upload Video</h1><span>Original file • zero re-encoding</span></div></div><div class="upload-card"><div class="dropzone" id="dropzone"><input id="uf" class="video-file-input" type="file" accept="video/*" onchange="showFile(this)"><span class="cloud">⇧</span><b>Choose Video from Gallery</b><small>Tap here to select a video from Photos / Files</small><strong id="file-name">No video selected</strong><label for="uf" class="choose-video-btn">Select Video</label></div><div class="upload-fields"><input id="ut" class="field" placeholder="Video Title"><select id="uc" class="field"><option value="">Select Category</option>${state.cats.map(c=>`<option value="${c.id}" ${(presetId&&String(c.id)===String(presetId))||(!presetId&&String(c.name).toLowerCase()===String(preset).toLowerCase())?'selected':''}>${esc(c.name)}</option>`).join('')}</select><textarea id="ud" class="field" rows="4" placeholder="Description (Optional)"></textarea></div><div class="quality-panel"><b>ORIGINAL QUALITY LOCK</b><span>We upload the exact selected file. No resize, no compression, no FPS conversion and no re-encoding.</span></div><button class="primary upload-submit" onclick="doUpload()">⇧ &nbsp; Upload Original Video</button><div class="upload-progress hidden" id="upload-progress"><div class="progress-track"><i></i></div><span id="upload-progress-text">Preparing…</span></div><div id="um" class="msg hidden"></div></div></main>`;
+  v.innerHTML=`<main class="screen upload-screen">${header('Upload Video',true)}<div class="page-title"><div><h1>Upload Video</h1><span>Original file • no compression</span></div></div><div class="upload-card"><div class="dropzone" id="dropzone"><input id="uf" class="video-file-input" type="file" accept="video/*" capture="environment" onchange="showFile(this)"><span class="cloud">⇧</span><b>Tap to choose a video</b><small>iPhone Photos / Gallery / Files</small><strong id="file-name">No video selected</strong><span class="choose-video-btn">Choose Video</span></div><div class="quality-panel"><b>ORIGINAL VIDEO UPLOAD</b><span>Your selected video is uploaded as the original file. No compression, resizing, FPS conversion or re-encoding.</span></div><button class="primary upload-submit" onclick="doUpload()">⇧ &nbsp; Upload Video</button><div class="upload-progress hidden" id="upload-progress"><div class="progress-track"><i></i></div><span id="upload-progress-text">Preparing…</span></div><div id="um" class="msg hidden"></div></div></main>`;
 }
 
-function showFile(input){const f=input.files[0],n=$('#file-name');if(n)n.textContent=f?`${f.name} • ${formatBytes(f.size)}`:'Choose a video';if(f){const dz=$('#dropzone');if(dz)dz.classList.add('has-file')}}
-function pickVideo(e){if(e)e.preventDefault();const input=$('#uf');if(input){try{input.click()}catch(err){console.error(err)}}}
-window.showFile=showFile;window.pickVideo=pickVideo;
+function showFile(input){const f=input.files&&input.files[0],n=$('#file-name');if(n)n.textContent=f?`${f.name} • ${formatBytes(f.size)}`:'No video selected';if(f){const dz=$('#dropzone');if(dz)dz.classList.add('has-file')}}
+window.showFile=showFile;
 function formatBytes(n){if(!n)return '0 B';const u=['B','KB','MB','GB'];let i=0,v=n;while(v>=1024&&i<u.length-1){v/=1024;i++}return (i===0?v.toFixed(0):v.toFixed(v>=100?0:v>=10?1:2))+' '+u[i]}
 async function doUpload(){
   const file=$('#uf')?.files?.[0],m=$('#um'),btn=document.querySelector('.upload-submit'),progress=$('#upload-progress'),pt=$('#upload-progress-text');
   m.classList.remove('hidden');
-  if(!file||!$('#ut')?.value.trim()){m.textContent='Video and title are required.';return}
-  if(!file.type.startsWith('video/')){m.textContent='Please select a valid video file.';return}
-  const categoryId=$('#uc')?.value||'';
-  if(!categoryId){m.textContent='Please select a category.';return}
+  if(!file){m.textContent='Please tap Choose Video and select a video from your iPhone.';return}
+  if(!file.type.startsWith('video/')){m.textContent='Please select a video file.';return}
   if(!state.user){m.textContent='Please login again.';return}
   if(file.size===0){m.textContent='This video file is empty.';return}
-  if(btn)btn.disabled=true;
-  if(progress)progress.classList.remove('hidden');
+  if(btn)btn.disabled=true;if(progress)progress.classList.remove('hidden');
   const setProgress=(pct,msg)=>{const bar=progress?.querySelector('.progress-track i');if(bar)bar.style.width=pct+'%';if(pt)pt.textContent=msg};
   try{
-    setProgress(5,'Preparing original file…');
+    setProgress(5,'Preparing original video…');
     const id=crypto.randomUUID();
     const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
     const path=state.user.id+'/'+id+'/'+safeName;
-    setProgress(15,`Uploading ${formatBytes(file.size)} original file…`);
+    setProgress(15,'Uploading original video…');
     const up=await sb.storage.from('videos-original').upload(path,file,{contentType:file.type,upsert:false,cacheControl:'3600'});
     if(up.error)throw up.error;
-    setProgress(78,'Saving video information…');
-    const ins=await sb.from('videos').insert({id,owner_id:state.user.id,category_id:categoryId,title:$('#ut').value.trim(),description:$('#ud').value,original_filename:file.name,storage_path:path,mime_type:file.type,file_size_bytes:file.size,status:'ready'});
+    setProgress(80,'Saving video…');
+    const categoryId=$('#uc')?.value||state.uploadCategoryId||null;
+    const title=file.name.replace(/\.[^/.]+$/,'')||'Uploaded Video';
+    const ins=await sb.from('videos').insert({id,owner_id:state.user.id,category_id:categoryId,title,description:'',original_filename:file.name,storage_path:path,mime_type:file.type,file_size_bytes:file.size,status:'ready'});
     if(ins.error){await sb.storage.from('videos-original').remove([path]);throw ins.error}
-    setProgress(100,'Upload complete • Original bytes stored');
-    m.textContent=`Uploaded ${formatBytes(file.size)}. No compression, resize, FPS conversion or re-encoding was performed.`;
+    setProgress(100,'Upload complete • original file saved');
+    m.textContent=`Uploaded successfully • ${formatBytes(file.size)} • Original quality preserved.`;
     await loadData();
-    state.uploadCategoryName='';state.uploadCategoryId='';
-    setTimeout(()=>categoryPageById(categoryId),650);
-  }catch(e){
-    m.textContent=e?.message||'Upload failed. Please try again.';
-    if(progress)progress.classList.add('hidden');
-    if(btn)btn.disabled=false;
-  }
+    const target=categoryId;state.uploadCategoryName='';state.uploadCategoryId='';
+    setTimeout(()=>target?categoryPageById(target):tab('cats'),700);
+  }catch(e){m.textContent=e?.message||'Upload failed. Please try again.';if(progress)progress.classList.add('hidden');if(btn)btn.disabled=false}
 }
 window.doUpload=doUpload;
+
 async function detail(id){
   const x=state.videos.find(v=>v.id===id);if(!x)return;
   document.body.innerHTML=`<main class="screen detail-screen video-loading"><div class="detail-top">${header('',true)}</div><div class="video-shell"><div class="video-loader"><div class="spinner"></div><span>Loading original video…</span></div></div><div class="detail-copy"><h1>${esc(x.title)}</h1><div class="meta-row"><span>◉ ${esc(categoryName(x.category_id))}</span><span>▣ ${new Date(x.created_at).toLocaleDateString()}</span><span>◉ ${esc(formatBytes(x.file_size_bytes))}</span></div><p class="description">${esc(x.description||'Beautiful original moment captured and edited by CineArtz036.')}</p><div class="detail-actions"><button onclick="favorite(${JSON.stringify(x.id)})">♡ ${state.favorites.has(x.id)?'Favorited':'Favorite'}</button><button class="download-btn" onclick="downloadVideo(${JSON.stringify(x.id)})">⇩ Download Original</button></div><div class="quality-note">Original stored file • No compression • No resizing • No FPS conversion</div></div></main>`;
