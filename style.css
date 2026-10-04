@@ -76,3 +76,4 @@ html{scroll-behavior:smooth}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}
 
 .upload-card{position:relative}.upload-submit:disabled{opacity:.55;cursor:not-allowed}.dropzone.has-file .choose-video-btn{background:#18181d;border:1px solid #ff2737}.dropzone.has-file strong{color:#fff}
+.field-label{font-size:11px;color:#b8b8bf;font-weight:700;margin:2px 2px -6px}.upload-screen select.field{appearance:auto;color:#f7f7f8;background:#101014}
