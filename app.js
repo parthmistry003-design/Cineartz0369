@@ -1,7 +1,4 @@
-const CONFIG={
-  url:'https://zqumthrpodjggnsfmhhp.supabase.co',
-  key:'sb_publishable_K21BgpeFWR6uDeCwNEqnvQ_rnI5IjHu'
-};
+const CONFIG={url:'https://zqumthrpodjggnsfmhhp.supabase.co',key:localStorage.getItem('cineartz_supabase_key')||''};
 let sb=null;
 let state={user:null,videos:[],cats:[],tab:'cats',search:'',favorites:new Set(),downloads:[],auth:'login',loading:true,gate:false,uploadCategoryId:null,uploadCategoryName:''};
 const $=s=>document.querySelector(s);
@@ -19,7 +16,15 @@ function categoryKey(name){const n=String(name||'').toLowerCase();if(n.includes(
 function categoryImage(name){return categoryImages[categoryKey(name)]||categoryImages.others}
 function categoryClick(e,id){if(e)e.preventDefault();openCategory(id)}
 function openCategory(id){const cat=state.cats.find(c=>String(c.id)===String(id));if(!cat){console.error('Category not found:',id,state.cats);return}categoryPageById(cat.id)}
-function categoryPageById(id){const cat=state.cats.find(c=>String(c.id)===String(id));if(!cat)return;const name=cat.name||'Others';const list=state.videos.filter(v=>String(v.category_id)===String(id));const img=categoryImage(name);document.body.innerHTML=`<main class="screen category-screen">${header(name,true)}<div class="category-hero" style="background-image:linear-gradient(180deg,rgba(0,0,0,.05),rgba(0,0,0,.88)),url('${img}')"><div class="category-hero-content"><div class="category-hero-icon">${icons[name]||icons[categoryKey(name)]||icons.default}</div><h1>${esc(name)}</h1><p>${list.length} video${list.length===1?'':'s'} • Original quality</p></div></div><div class="category-actions"><button type="button" class="primary category-upload-btn" data-upload-category="${esc(cat.id)}">＋ Upload to ${esc(name)}</button><button class="secondary" onclick="tab('downloads')">⇩ Downloads</button></div><div class="section-title"><h2>${esc(name)} Videos</h2><span>No compression</span></div><div class="recent-grid">${list.map(recentCard).join('')||'<div class="empty">No videos in this category yet.<br>Tap Upload to add the first one.</div>'}</div><div class="quality-note">Original file • No compression • No resizing • Same uploaded quality</div></main>`}
+function categoryPageById(id){
+  const cat=state.cats.find(c=>String(c.id)===String(id));
+  if(!cat)return;
+  const name=cat.name||'Others';
+  const list=state.videos.filter(v=>String(v.category_id)===String(id));
+  const img=categoryImage(name);
+  document.body.innerHTML=`<div id="view"><main class="screen category-screen">${header(name,true)}<div class="category-hero" style="background-image:linear-gradient(180deg,rgba(0,0,0,.05),rgba(0,0,0,.88)),url('${img}')"><div class="category-hero-content"><div class="category-hero-icon">${icons[name]||icons[categoryKey(name)]||icons.default}</div><h1>${esc(name)}</h1><p>${list.length} video${list.length===1?'':'s'} • Original quality</p></div></div><div class="category-actions"><button type="button" class="primary category-upload-btn" data-upload-category="${esc(cat.id)}">＋ Upload to ${esc(name)}</button><button type="button" class="secondary" onclick="tab('downloads')">⇩ Downloads</button></div><div class="section-title"><h2>${esc(name)} Videos</h2><span>No compression</span></div><div class="recent-grid">${list.map(recentCard).join('')||'<div class="empty">No videos in this category yet.<br>Tap Upload to add the first one.</div>'}</div><div class="quality-note">Original file • No compression • No resizing • Same uploaded quality</div></main></div>${navHtml()}`;
+  markNav();
+}
 function uploadToCategoryById(id){const cat=state.cats.find(c=>String(c.id)===String(id));if(!cat){console.error('Upload category not found:',id,state.cats);alert('Category could not be selected. Please reload the app.');return}state.uploadCategoryId=String(cat.id);state.uploadCategoryName=cat.name||'Category';state.tab='upload';app();}
 window.openCategory=openCategory;window.categoryPageById=categoryPageById;window.uploadToCategoryById=uploadToCategoryById
 window.categoryClick=categoryClick;
@@ -97,9 +102,9 @@ function brandGate(){
 }
 function enterCategories(){state.gate=false;state.tab='cats';app();cats(document.querySelector('#view'));}
 window.enterCategories=enterCategories;
-function app(){
-  document.body.innerHTML='<div id="view"></div><button class="fab" onclick="tab(\'upload\')">＋</button><nav class="bottom"><button id="nav-home" onclick="tab(\'home\')">⌂<small>Home</small></button><button id="nav-cats" onclick="tab(\'cats\')">▦<small>Categories</small></button><button id="nav-downloads" onclick="tab(\'downloads\')">⇩<small>Downloads</small></button><button id="nav-profile" onclick="tab(\'profile\')">◉<small>Profile</small></button></nav>';view();
-}
+function navHtml(){return '<button class="fab" type="button" onclick="tab(\'upload\')">＋</button><nav class="bottom"><button id="nav-home" type="button" onclick="tab(\'home\')">⌂<small>Home</small></button><button id="nav-cats" type="button" onclick="tab(\'cats\')">▦<small>Categories</small></button><button id="nav-downloads" type="button" onclick="tab(\'downloads\')">⇩<small>Downloads</small></button><button id="nav-profile" type="button" onclick="tab(\'profile\')">◉<small>Profile</small></button></nav>'}
+function markNav(){['home','cats','downloads','profile'].forEach(t=>{const b=document.querySelector('#nav-'+t);if(b)b.classList.toggle('active',state.tab===t)})}
+function app(){document.body.innerHTML='<div id="view"></div>'+navHtml();view()}
 function tab(t){state.tab=t;view()}
 function view(){const v=$('#view');if(!v)return;['home','cats','downloads','profile'].forEach(t=>{const b=$('#nav-'+t);if(b)b.classList.toggle('active',state.tab===t)});if(state.tab==='home')home(v);else if(state.tab==='cats')cats(v);else if(state.tab==='downloads')downloads(v);else if(state.tab==='upload')upload(v);else profile(v);requestAnimationFrame(()=>document.body.classList.add('page-ready'))}
 function goBack(){ if(state.tab==='upload'){state.tab='cats';app();return} state.tab='cats';app(); }
@@ -111,7 +116,7 @@ function home(v){
   v.innerHTML=`<main class="screen">${header()}<div class="searchbox"><span>⌕</span><input placeholder="Search videos, categories..." oninput="state.search=this.value;home(document.querySelector('#view'))" value="${esc(state.search)}"></div><div class="hero"><div><b>Real Moments</b><b>Real Stories</b><span>From RAW shorts → to Real</span></div><div class="hero-person">◒</div></div><div class="section-title"><h2>Categories</h2><button onclick="tab('cats')">See All →</button></div><div class="cat-grid">${cats.map(catCard).join('')}</div><div class="section-title"><h2>Recently Added</h2><button onclick="tab('cats')">See All →</button></div><div class="recent-grid">${list.slice(0,6).map(recentCard).join('')||'<div class="empty">No videos added yet.</div>'}</div></main>`;
 }
 function catCard(c,i){const n=(c.name||'Others'),icon=icons[n]||icons[categoryKey(n)]||icons.default;return `<button class="cat-card c${i}" style="--cat-image:url('${categoryImage(n)}')" data-category-id="${esc(c.id)}" onclick="openCategory(this.dataset.categoryId)"><div class="cat-icon">${icon}</div><div><b>${esc(n)}</b><small>${state.videos.filter(v=>v.category_id===c.id).length} Videos</small></div><span>›</span></button>`}
-function recentCard(x){return `<button class="recent-card" onclick="detail(${JSON.stringify(x.id)})"><div class="thumb art-${Math.abs(hash(x.id))%6}"><span>▶</span><em>${formatDuration(x)}</em></div><b>${esc(x.title)}</b><small>${esc(x.original_filename||'Video')}</small></button>`}
+function recentCard(x){const own=String(x.owner_id)===String(state.user?.id);return `<div class="recent-card video-card" data-video-id="${esc(x.id)}"><button type="button" class="video-open" onclick="detail(${JSON.stringify(x.id)})"><div class="thumb art-${Math.abs(hash(x.id))%6}"><span>▶</span><em>${formatDuration(x)}</em></div><b>${esc(x.title)}</b><small>${esc(x.original_filename||'Video')}</small></button><div class="video-card-actions"><button type="button" onclick="detail(${JSON.stringify(x.id)})">▶ Play</button>${own?`<button type="button" class="mini-delete" onclick="deleteVideo(${JSON.stringify(x.id)},true)">🗑 Delete</button>`:''}</div></div>`}
 function hash(s){let h=0;for(let i=0;i<s.length;i++)h=(h<<5)-h+s.charCodeAt(i)|0;return h}
 function formatDuration(x){return x.duration_seconds?new Date(x.duration_seconds*1000).toISOString().substr(14,5):'00:48'}
 function cats(v){v.innerHTML=`<main class="screen">${header('Categories',false)}<div class="page-title"><div><h1>Categories</h1><span>Explore your video library</span></div></div><div class="quick-actions"><button onclick="tab('upload')"><b>＋</b><span>Upload Video</span><small>Add your original video</small></button><button onclick="tab('downloads')"><b>⇩</b><span>Downloads</span><small>Saved videos</small></button></div><div class="section-title"><h2>Collections</h2><span>${state.cats.length} categories</span></div><div class="category-list">${state.cats.map((c,i)=>catLarge(c,i)).join('')}</div></main>`}
@@ -190,21 +195,24 @@ async function doUpload(){
 window.doUpload=doUpload;
 
 async function detail(id){
-  const x=state.videos.find(v=>v.id===id);if(!x)return;
-  document.body.innerHTML=`<main class="screen detail-screen video-loading"><div class="detail-top">${header('',true)}</div><div class="video-shell"><div class="video-loader"><div class="spinner"></div><span>Loading original video…</span></div></div><div class="detail-copy"><h1>${esc(x.title)}</h1><div class="meta-row"><span>◉ ${esc(categoryName(x.category_id))}</span><span>▣ ${new Date(x.created_at).toLocaleDateString()}</span><span>◉ ${esc(formatBytes(x.file_size_bytes))}</span></div><p class="description">${esc(x.description||'Beautiful original moment captured and edited by CineArtz036.')}</p><div class="detail-actions"><button onclick="favorite(${JSON.stringify(x.id)})">♡ ${state.favorites.has(x.id)?'Favorited':'Favorite'}</button><button class="download-btn" onclick="downloadVideo(${JSON.stringify(x.id)})">⇩ Download Original</button>${String(x.owner_id)===String(state.user.id)?`<button class="delete-btn" onclick="deleteVideo(${JSON.stringify(x.id)})">🗑 Delete Video</button>`:''}</div><div class="quality-note">Original stored file • No compression • No resizing • No FPS conversion</div></div></main>`;
-  const signed=await sb.storage.from('videos-original').createSignedUrl(x.storage_path,3600);
-  const url=signed.data?.signedUrl;
-  const shell=document.querySelector('.video-shell');
-  if(!shell)return;
-  if(!url){shell.innerHTML='<div class="empty">Video unavailable</div>';return}
-  shell.innerHTML=`<video id="cine-player" class="cine-video" controls playsinline webkit-playsinline preload="metadata" src="${esc(url)}"></video><div class="video-badge">ORIGINAL</div>`;
-  const player=document.querySelector('#cine-player');
-  if(player){player.addEventListener('error',()=>{shell.innerHTML='<div class="empty">Video could not be played. Please try again.</div>';});}
-  requestAnimationFrame(()=>document.body.classList.add('page-ready'));
+  const x=state.videos.find(v=>String(v.id)===String(id));if(!x)return;
+  document.body.innerHTML=`<div id="detail-view"><main class="screen detail-screen video-loading"><div class="detail-top">${header('',true)}</div><div class="video-shell" id="video-shell"><div class="video-loader"><div class="spinner"></div><span>Loading original video…</span></div></div><div class="detail-copy"><h1>${esc(x.title)}</h1><div class="meta-row"><span>◉ ${esc(categoryName(x.category_id))}</span><span>▣ ${new Date(x.created_at).toLocaleDateString()}</span><span>◉ ${esc(formatBytes(x.file_size_bytes))}</span></div><p class="description">${esc(x.description||'Original video uploaded to CineArtz036.')}</p><div class="detail-actions"><button type="button" onclick="favorite(${JSON.stringify(x.id)})">♡ ${state.favorites.has(x.id)?'Favorited':'Favorite'}</button><button type="button" class="download-btn" onclick="downloadVideo(${JSON.stringify(x.id)})">⇩ Download Original</button>${String(x.owner_id)===String(state.user.id)?`<button type="button" class="delete-btn" onclick="deleteVideo(${JSON.stringify(x.id)})">🗑 Delete Video</button>`:''}</div><div class="quality-note">Original stored file • No compression • No resizing • No FPS conversion</div></div></main></div>${navHtml()}`;
+  try{
+    const signed=await sb.storage.from('videos-original').createSignedUrl(x.storage_path,3600);
+    const shell=document.querySelector('#video-shell');
+    if(!shell)return;
+    if(signed.error||!signed.data?.signedUrl){shell.innerHTML=`<div class="empty">Video link could not be created.<br><small>${esc(signed.error?.message||'Storage access error')}</small><br><button class="primary" type="button" onclick="detail(${JSON.stringify(x.id)})">↻ Try Again</button></div>`;return}
+    const player=document.createElement('video');
+    player.id='cine-player';player.className='cine-video';player.controls=true;player.playsInline=true;player.preload='metadata';player.setAttribute('webkit-playsinline','true');player.setAttribute('x-webkit-airplay','allow');player.setAttribute('controlsList','nodownload');player.src=signed.data.signedUrl;player.load();
+    const badge=document.createElement('div');badge.className='video-badge';badge.textContent='ORIGINAL';
+    shell.innerHTML='';shell.appendChild(player);shell.appendChild(badge);
+    player.addEventListener('error',()=>{shell.innerHTML=`<div class="empty">This video format cannot be played by this iPhone/browser.<br>You can still use <b>Download Original</b> to save the exact file.</div>`});
+    player.addEventListener('loadedmetadata',()=>document.body.classList.add('page-ready'),{once:true});
+  }catch(e){const shell=document.querySelector('#video-shell');if(shell)shell.innerHTML=`<div class="empty">Video loading failed.<br><small>${esc(e?.message||'Unknown error')}</small><br><button class="primary" type="button" onclick="detail(${JSON.stringify(x.id)})">↻ Try Again</button></div>`}
 }
 function categoryName(id){return state.cats.find(c=>String(c.id)===String(id))?.name||'Others'}
 
-async function deleteVideo(id){
+async function deleteVideo(id,quick=false){
   const x=state.videos.find(v=>String(v.id)===String(id));
   if(!x)return;
   if(String(x.owner_id)!==String(state.user?.id)){alert('You can delete only your own videos.');return;}
@@ -243,14 +251,14 @@ async function downloadVideo(id){
     state.downloads=JSON.parse(localStorage.getItem('cineartz_downloads')||'[]').filter(d=>d.id!==x.id);
     state.downloads.unshift({id:x.id,title:x.title,storage_path:x.storage_path,filename:x.original_filename,size:x.file_size_bytes,mime:x.mime_type,date:Date.now()});
     state.downloads=state.downloads.slice(0,30);localStorage.setItem('cineartz_downloads',JSON.stringify(state.downloads));
-    const a=document.createElement('a');a.href=url;a.download=x.original_filename||'video.mp4';a.rel='noopener';a.target='_blank';document.body.appendChild(a);a.click();a.remove();
+    window.location.href=url;
     if(btn){btn.disabled=false;btn.textContent='✓ Original Download Started'}
   }catch(e){
     if(btn){btn.disabled=false;btn.textContent='⇩ Download Original'}
     alert(e?.message||'Download failed.');
   }
 }
-async function openDownload(id){const d=state.downloads.find(x=>x.id===id);if(!d)return;const r=await sb.storage.from('videos-original').createSignedUrl(d.storage_path,3600,{download:d.filename||'video.mp4'});const url=r.data?.signedUrl;if(url)window.open(url,'_blank','noopener')}
+async function openDownload(id){const d=state.downloads.find(x=>x.id===id);if(!d)return;const r=await sb.storage.from('videos-original').createSignedUrl(d.storage_path,3600,{download:d.filename||'video.mp4'});const url=r.data?.signedUrl;if(url)window.location.href=url}
 
 function downloads(v){state.downloads=JSON.parse(localStorage.getItem('cineartz_downloads')||'[]');v.innerHTML=`<main class="screen">${header('Downloads',true)}<div class="page-title"><h1>Downloads</h1><span>${state.downloads.length} saved</span></div><div class="download-list">${state.downloads.map(d=>`<button class="download-row" onclick="openDownload(${JSON.stringify(d.id)})"><div class="download-thumb">▶</div><div><b>${esc(d.title)}</b><small>${esc(d.filename||'Original video')} · ${esc(formatBytes(d.size))}</small></div><span>⇩</span></button>`).join('')||'<div class="empty">Your downloaded videos will appear here.</div>'}</div><div class="quality-note">Downloads use the original stored file. No re-encoding or quality reduction is performed.</div></main>`}
 function profile(v){v.innerHTML=`<main class="screen">${header('Profile')}<div class="profile-head"><div class="avatar">CA</div><div><h2>${esc(state.user?.user_metadata?.full_name||'cineartz036')}</h2><p>${esc(state.user?.email||'')}</p><span>● Active</span></div></div><div class="profile-menu"><button onclick="tab('upload')">⇧ <b>My Uploads</b><span>${state.videos.filter(x=>x.owner_id===state.user.id).length} ›</span></button><button onclick="tab('downloads')">⇩ <b>Downloads</b><span>${state.downloads.length} ›</span></button><button onclick="tab('home');state.search=''">♡ <b>Favorites</b><span>${state.favorites.size} ›</span></button><button onclick="alert('Settings are available in the web app preferences.')">⚙ <b>Settings</b><span>›</span></button><button onclick="alert('CineArtz036 — From RAW shorts → to Real')">ⓘ <b>About App</b><span>›</span></button></div><div class="quote">Create Amazing Edits,<br><b>One Frame at a Time!</b></div><button class="logout" onclick="logout()">Log Out</button></main>`}
