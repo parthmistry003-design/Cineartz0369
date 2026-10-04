@@ -1,7 +1,4 @@
-const CONFIG={
-  url:'https://zqumthrpodjggnsfmhhp.supabase.co',
-  key:'sb_publishable_K21BgpeFWR6uDeCwNEqnvQ_rnI5IjHu'
-};
+const CONFIG={url:'https://zqumthrpodjggnsfmhhp.supabase.co',key:localStorage.getItem('cineartz_supabase_key')||''};
 let sb=null;
 let state={user:null,videos:[],cats:[],tab:'cats',search:'',favorites:new Set(),downloads:[],auth:'login',loading:true,gate:false,uploadCategoryId:null,uploadCategoryName:''};
 const $=s=>document.querySelector(s);
@@ -191,16 +188,45 @@ window.doUpload=doUpload;
 
 async function detail(id){
   const x=state.videos.find(v=>v.id===id);if(!x)return;
-  document.body.innerHTML=`<main class="screen detail-screen video-loading"><div class="detail-top">${header('',true)}</div><div class="video-shell"><div class="video-loader"><div class="spinner"></div><span>Loading original video…</span></div></div><div class="detail-copy"><h1>${esc(x.title)}</h1><div class="meta-row"><span>◉ ${esc(categoryName(x.category_id))}</span><span>▣ ${new Date(x.created_at).toLocaleDateString()}</span><span>◉ ${esc(formatBytes(x.file_size_bytes))}</span></div><p class="description">${esc(x.description||'Beautiful original moment captured and edited by CineArtz036.')}</p><div class="detail-actions"><button onclick="favorite(${JSON.stringify(x.id)})">♡ ${state.favorites.has(x.id)?'Favorited':'Favorite'}</button><button class="download-btn" onclick="downloadVideo(${JSON.stringify(x.id)})">⇩ Download Original</button></div><div class="quality-note">Original stored file • No compression • No resizing • No FPS conversion</div></div></main>`;
+  document.body.innerHTML=`<main class="screen detail-screen video-loading"><div class="detail-top">${header('',true)}</div><div class="video-shell"><div class="video-loader"><div class="spinner"></div><span>Loading original video…</span></div></div><div class="detail-copy"><h1>${esc(x.title)}</h1><div class="meta-row"><span>◉ ${esc(categoryName(x.category_id))}</span><span>▣ ${new Date(x.created_at).toLocaleDateString()}</span><span>◉ ${esc(formatBytes(x.file_size_bytes))}</span></div><p class="description">${esc(x.description||'Beautiful original moment captured and edited by CineArtz036.')}</p><div class="detail-actions"><button onclick="favorite(${JSON.stringify(x.id)})">♡ ${state.favorites.has(x.id)?'Favorited':'Favorite'}</button><button class="download-btn" onclick="downloadVideo(${JSON.stringify(x.id)})">⇩ Download Original</button>${String(x.owner_id)===String(state.user.id)?`<button class="delete-btn" onclick="deleteVideo(${JSON.stringify(x.id)})">🗑 Delete Video</button>`:''}</div><div class="quality-note">Original stored file • No compression • No resizing • No FPS conversion</div></div></main>`;
   const signed=await sb.storage.from('videos-original').createSignedUrl(x.storage_path,3600);
   const url=signed.data?.signedUrl;
   const shell=document.querySelector('.video-shell');
   if(!shell)return;
   if(!url){shell.innerHTML='<div class="empty">Video unavailable</div>';return}
-  shell.innerHTML=`<video class="cine-video" controls playsinline webkit-playsinline preload="metadata" src="${esc(url)}"></video><div class="video-badge">ORIGINAL</div>`;
+  shell.innerHTML=`<video id="cine-player" class="cine-video" controls playsinline webkit-playsinline preload="metadata" src="${esc(url)}"></video><div class="video-badge">ORIGINAL</div>`;
+  const player=document.querySelector('#cine-player');
+  if(player){player.addEventListener('error',()=>{shell.innerHTML='<div class="empty">Video could not be played. Please try again.</div>';});}
   requestAnimationFrame(()=>document.body.classList.add('page-ready'));
 }
 function categoryName(id){return state.cats.find(c=>String(c.id)===String(id))?.name||'Others'}
+
+async function deleteVideo(id){
+  const x=state.videos.find(v=>String(v.id)===String(id));
+  if(!x)return;
+  if(String(x.owner_id)!==String(state.user?.id)){alert('You can delete only your own videos.');return;}
+  const ok=confirm(`Delete “${x.title||'this video'}”?\n\nThis will permanently remove the original video.`);
+  if(!ok)return;
+  const btn=document.querySelector('.delete-btn');
+  if(btn){btn.disabled=true;btn.textContent='Deleting…'}
+  try{
+    const sr=await sb.storage.from('videos-original').remove([x.storage_path]);
+    if(sr.error)throw sr.error;
+    const dr=await sb.from('videos').delete().eq('id',x.id).eq('owner_id',state.user.id);
+    if(dr.error)throw dr.error;
+    state.videos=state.videos.filter(v=>String(v.id)!==String(x.id));
+    state.downloads=state.downloads.filter(d=>String(d.id)!==String(x.id));
+    localStorage.setItem('cineartz_downloads',JSON.stringify(state.downloads));
+    const target=x.category_id;
+    await loadData();
+    if(target)categoryPageById(target);else tab('cats');
+  }catch(e){
+    console.error('CineArtz delete error:',e);
+    if(btn){btn.disabled=false;btn.textContent='🗑 Delete Video'}
+    alert(e?.message||'Delete failed. Check Supabase Storage/Table policies.');
+  }
+}
+window.deleteVideo=deleteVideo;
 window.detail=detail;
 async function favorite(id){if(state.favorites.has(id)){await sb.from('favorites').delete().eq('user_id',state.user.id).eq('video_id',id);state.favorites.delete(id)}else{await sb.from('favorites').insert({user_id:state.user.id,video_id:id});state.favorites.add(id)}detail(id)}
 async function downloadVideo(id){
