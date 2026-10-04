@@ -1,7 +1,4 @@
-const CONFIG={
-  url:'https://zqumthrpodjggnsfmhhp.supabase.co',
-  key:'sb_publishable_K21BgpeFWR6uDeCwNEqnvQ_rnI5IjHu'
-};
+const CONFIG={url:'https://zqumthrpodjggnsfmhhp.supabase.co',key:localStorage.getItem('cineartz_supabase_key')||''};
 let sb=null;
 let state={user:null,videos:[],cats:[],tab:'cats',search:'',favorites:new Set(),downloads:[],auth:'login',loading:true,gate:false};
 const $=s=>document.querySelector(s);
@@ -134,18 +131,41 @@ async function doUpload(){
   if(!file.type.startsWith('video/')){m.textContent='Please select a video file.';return}
   if(!state.user){m.textContent='Please login again.';return}
   if(file.size===0){m.textContent='This video file is empty.';return}
+  if(typeof tus==='undefined'){m.textContent='Upload engine could not load. Check internet and reload the app.';return}
   if(btn)btn.disabled=true;if(progress)progress.classList.remove('hidden');
-  const setProgress=(pct,msg)=>{const bar=progress?.querySelector('.progress-track i');if(bar)bar.style.width=pct+'%';if(pt)pt.textContent=msg};
+  const setProgress=(pct,msg)=>{const bar=progress?.querySelector('.progress-track i');if(bar)bar.style.width=Math.max(0,Math.min(100,pct))+'%';if(pt)pt.textContent=msg};
+  let path='';
   try{
-    setProgress(5,'Preparing original video…');
+    setProgress(1,'Preparing secure resumable upload…');
+    const sessionRes=await sb.auth.getSession();
+    const accessToken=sessionRes.data?.session?.access_token;
+    if(!accessToken)throw new Error('Your login session expired. Please log in again.');
     const id=crypto.randomUUID();
     const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-    const path=state.user.id+'/'+id+'/'+safeName;
-    setProgress(15,'Uploading original video…');
-    const up=await sb.storage.from('videos-original').upload(path,file,{contentType:file.type,upsert:false,cacheControl:'3600'});
-    if(up.error)throw up.error;
-    setProgress(80,'Saving video…');
-    const categoryId=$('#uc')?.value||state.uploadCategoryId||null;
+    path=state.user.id+'/'+id+'/'+safeName;
+    const projectRef='zqumthrpodjggnsfmhhp';
+    const endpoint='https://'+projectRef+'.storage.supabase.co/storage/v1/upload/resumable';
+    setProgress(2,`Uploading original video • ${formatBytes(file.size)}`);
+    await new Promise((resolve,reject)=>{
+      const upload=new tus.Upload(file,{
+        endpoint,
+        retryDelays:[0,3000,5000,10000,20000],
+        chunkSize:6*1024*1024,
+        uploadSize:file.size,
+        removeFingerprintOnSuccess:true,
+        headers:{authorization:'Bearer '+accessToken},
+        metadata:{bucketName:'videos-original',objectName:path,contentType:file.type,cacheControl:'3600'},
+        onError:(err)=>reject(err),
+        onProgress:(bytesUploaded,bytesTotal)=>{
+          const pct=Math.round((bytesUploaded/bytesTotal)*94)+2;
+          setProgress(pct,`Uploading original • ${Math.round(bytesUploaded/1024/1024)} / ${Math.round(bytesTotal/1024/1024)} MB`);
+        },
+        onSuccess:()=>resolve()
+      });
+      upload.start();
+    });
+    setProgress(97,'Saving video details…');
+    const categoryId=state.uploadCategoryId||null;
     const title=file.name.replace(/\.[^/.]+$/,'')||'Uploaded Video';
     const ins=await sb.from('videos').insert({id,owner_id:state.user.id,category_id:categoryId,title,description:'',original_filename:file.name,storage_path:path,mime_type:file.type,file_size_bytes:file.size,status:'ready'});
     if(ins.error){await sb.storage.from('videos-original').remove([path]);throw ins.error}
@@ -154,8 +174,15 @@ async function doUpload(){
     await loadData();
     const target=categoryId;state.uploadCategoryName='';state.uploadCategoryId='';
     setTimeout(()=>target?categoryPageById(target):tab('cats'),700);
-  }catch(e){m.textContent=e?.message||'Upload failed. Please try again.';if(progress)progress.classList.add('hidden');if(btn)btn.disabled=false}
+  }catch(e){
+    console.error('CineArtz upload error:',e);
+    const msg=e?.message||e?.originalResponse?.getBody?.()||'Upload failed.';
+    m.textContent=String(msg).slice(0,220);
+    if(progress)progress.classList.add('hidden');
+    if(btn)btn.disabled=false;
+  }
 }
+
 window.doUpload=doUpload;
 
 async function detail(id){
