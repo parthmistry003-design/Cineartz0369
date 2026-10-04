@@ -1,7 +1,4 @@
-const CONFIG={
-  url:'https://zqumthrpodjggnsfmhhp.supabase.co',
-  key:'sb_publishable_K21BgpeFWR6uDeCwNEqnvQ_rnI5IjHu'
-};
+const CONFIG={url:'https://zqumthrpodjggnsfmhhp.supabase.co',key:localStorage.getItem('cineartz_supabase_key')||''};
 let sb=null;
 let state={user:null,videos:[],cats:[],tab:'cats',search:'',favorites:new Set(),downloads:[],auth:'login',loading:true,gate:false};
 const $=s=>document.querySelector(s);
@@ -121,7 +118,7 @@ window.categoryPage=categoryPage;
 function uploadToCategory(name){state.uploadCategoryName=name;state.tab='upload';app()}
 async function upload(v){
   const preset=state.uploadCategoryName||'';const presetId=state.uploadCategoryId||'';
-  v.innerHTML=`<main class="screen upload-screen">${header('Upload Video',true)}<div class="page-title"><div><h1>Upload Video</h1><span>Original file • no compression</span></div></div><div class="upload-card"><div class="dropzone" id="dropzone"><input id="uf" class="video-file-input" type="file" accept="video/*" capture="environment" onchange="showFile(this)"><span class="cloud">⇧</span><b>Tap to choose a video</b><small>iPhone Photos / Gallery / Files</small><strong id="file-name">No video selected</strong><span class="choose-video-btn">Choose Video</span></div><div class="quality-panel"><b>ORIGINAL VIDEO UPLOAD</b><span>Your selected video is uploaded as the original file. No compression, resizing, FPS conversion or re-encoding.</span></div><button class="primary upload-submit" onclick="doUpload()">⇧ &nbsp; Upload Video</button><div class="upload-progress hidden" id="upload-progress"><div class="progress-track"><i></i></div><span id="upload-progress-text">Preparing…</span></div><div id="um" class="msg hidden"></div></div></main>`;
+  v.innerHTML=`<main class="screen upload-screen">${header('Upload Video',true)}<div class="page-title"><div><h1>Upload Video</h1><span>Original file • no compression</span></div></div><div class="upload-card"><label class="dropzone" id="dropzone" for="uf"><input id="uf" class="video-file-input" type="file" accept="video/*" onchange="showFile(this)"><span class="cloud">⇧</span><b>Tap to choose a video</b><small>iPhone Photos / Gallery / Files</small><strong id="file-name">No video selected</strong><span class="choose-video-btn">Choose Video from Gallery</span></label><div class="quality-panel"><b>ORIGINAL VIDEO UPLOAD</b><span>Your selected video is uploaded as the original file. No compression, resizing, FPS conversion or re-encoding.</span></div><button class="primary upload-submit" onclick="doUpload()">⇧ &nbsp; Upload Video</button><div class="upload-progress hidden" id="upload-progress"><div class="progress-track"><i></i></div><span id="upload-progress-text">Preparing…</span></div><div id="um" class="msg hidden"></div></div></main>`;
 }
 
 function showFile(input){const f=input.files&&input.files[0],n=$('#file-name');if(n)n.textContent=f?`${f.name} • ${formatBytes(f.size)}`:'No video selected';if(f){const dz=$('#dropzone');if(dz)dz.classList.add('has-file')}}
