@@ -1,7 +1,4 @@
-const CONFIG={
-  url:'https://zqumthrpodjggnsfmhhp.supabase.co',
-  key:'sb_publishable_K21BgpeFWR6uDeCwNEqnvQ_rnI5IjHu'
-};
+const CONFIG={url:'https://zqumthrpodjggnsfmhhp.supabase.co',key:localStorage.getItem('cineartz_supabase_key')||''};
 let sb=null;
 let state={user:null,videos:[],cats:[],tab:'cats',search:'',favorites:new Set(),downloads:[],auth:'login',loading:true,gate:false};
 const $=s=>document.querySelector(s);
@@ -121,11 +118,12 @@ window.categoryPage=categoryPage;
 function uploadToCategory(name){state.uploadCategoryName=name;state.tab='upload';app()}
 async function upload(v){
   const preset=state.uploadCategoryName||'';const presetId=state.uploadCategoryId||'';
-  v.innerHTML=`<main class="screen upload-screen">${header('Upload Video',true)}<div class="page-title"><div><h1>Upload Video</h1><span>Original file • zero re-encoding</span></div></div><div class="upload-card"><label class="dropzone" id="dropzone"><input id="uf" type="file" accept="video/*" onchange="showFile(this)"><span class="cloud">⇧</span><b>Select Video</b><small>Gallery or Files • any supported video</small><strong id="file-name">Choose a video</strong></label><div class="upload-fields"><input id="ut" class="field" placeholder="Video Title"><select id="uc" class="field"><option value="">Select Category</option>${state.cats.map(c=>`<option value="${c.id}" ${(presetId&&String(c.id)===String(presetId))||(!presetId&&String(c.name).toLowerCase()===String(preset).toLowerCase())?'selected':''}>${esc(c.name)}</option>`).join('')}</select><textarea id="ud" class="field" rows="4" placeholder="Description (Optional)"></textarea></div><div class="quality-panel"><b>ORIGINAL QUALITY LOCK</b><span>We upload the exact selected file. No resize, no compression, no FPS conversion and no re-encoding.</span></div><button class="primary upload-submit" onclick="doUpload()">⇧ &nbsp; Upload Original Video</button><div class="upload-progress hidden" id="upload-progress"><div class="progress-track"><i></i></div><span id="upload-progress-text">Preparing…</span></div><div id="um" class="msg hidden"></div></div></main>`;
+  v.innerHTML=`<main class="screen upload-screen">${header('Upload Video',true)}<div class="page-title"><div><h1>Upload Video</h1><span>Original file • zero re-encoding</span></div></div><div class="upload-card"><div class="dropzone" id="dropzone"><input id="uf" class="video-file-input" type="file" accept="video/*" onchange="showFile(this)"><span class="cloud">⇧</span><b>Choose Video from Gallery</b><small>Tap here to select a video from Photos / Files</small><strong id="file-name">No video selected</strong><label for="uf" class="choose-video-btn">Select Video</label></div><div class="upload-fields"><input id="ut" class="field" placeholder="Video Title"><select id="uc" class="field"><option value="">Select Category</option>${state.cats.map(c=>`<option value="${c.id}" ${(presetId&&String(c.id)===String(presetId))||(!presetId&&String(c.name).toLowerCase()===String(preset).toLowerCase())?'selected':''}>${esc(c.name)}</option>`).join('')}</select><textarea id="ud" class="field" rows="4" placeholder="Description (Optional)"></textarea></div><div class="quality-panel"><b>ORIGINAL QUALITY LOCK</b><span>We upload the exact selected file. No resize, no compression, no FPS conversion and no re-encoding.</span></div><button class="primary upload-submit" onclick="doUpload()">⇧ &nbsp; Upload Original Video</button><div class="upload-progress hidden" id="upload-progress"><div class="progress-track"><i></i></div><span id="upload-progress-text">Preparing…</span></div><div id="um" class="msg hidden"></div></div></main>`;
 }
 
 function showFile(input){const f=input.files[0],n=$('#file-name');if(n)n.textContent=f?`${f.name} • ${formatBytes(f.size)}`:'Choose a video';if(f){const dz=$('#dropzone');if(dz)dz.classList.add('has-file')}}
-window.showFile=showFile;
+function pickVideo(e){if(e)e.preventDefault();const input=$('#uf');if(input){try{input.click()}catch(err){console.error(err)}}}
+window.showFile=showFile;window.pickVideo=pickVideo;
 function formatBytes(n){if(!n)return '0 B';const u=['B','KB','MB','GB'];let i=0,v=n;while(v>=1024&&i<u.length-1){v/=1024;i++}return (i===0?v.toFixed(0):v.toFixed(v>=100?0:v>=10?1:2))+' '+u[i]}
 async function doUpload(){
   const file=$('#uf')?.files?.[0],m=$('#um'),btn=document.querySelector('.upload-submit'),progress=$('#upload-progress'),pt=$('#upload-progress-text');
